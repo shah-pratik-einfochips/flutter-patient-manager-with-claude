@@ -1,6 +1,6 @@
 # Patient Health (Flutter)
 
-Patient demographics and daily vitals for iOS and Android, with a FHIR R4 backend, a 7-day dashboard and CSV/PDF export. Mirrors the native iOS and Android apps in this repository.
+Patient demographics and daily vitals for iOS and Android, with a FHIR R4 backend, a 7-day dashboard and CSV/PDF export. It follows the same domain rules as the native iOS and Android apps, which live in separate repositories.
 
 ## Architecture
 Feature-light Clean Architecture, Riverpod for state and DI, go_router for navigation.
