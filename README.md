@@ -25,4 +25,14 @@ Development targets `localhost:8080/fhir` (`10.0.2.2` on the Android emulator). 
 - Uploads only for patients who gave consent. Audit log stores actions and IDs only.
 
 ## Known gaps
-No Android flavors / iOS schemes (environment is a runtime setting), no localization, no integration_test or golden tests, PDF uses the built-in Latin-1 font, no session expiry.
+No Android flavors / iOS schemes (environment is a runtime setting), no localization, no golden tests, PDF uses the built-in Latin-1 font, no session expiry.
+
+## Integration tests and CI
+
+`integration_test/app_flow_test.dart` drives the real app (register a patient, record vitals, open the dashboard) with an in-memory database. Run it on a connected device or simulator:
+
+```bash
+flutter test integration_test -d <device-id>
+```
+
+GitHub Actions (`.github/workflows/ci.yml`) checks formatting, runs `flutter analyze` and the unit tests with coverage, then runs the integration test on an iOS simulator and an Android emulator, for every push to `main` and every pull request.
