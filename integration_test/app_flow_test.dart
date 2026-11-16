@@ -28,6 +28,19 @@ Future<void> enter(WidgetTester tester, String label, String text) async {
   await tester.enterText(field, text);
 }
 
+/// Scrolls the button fully into view (not just partly on screen), then taps it.
+Future<void> tapButton(WidgetTester tester, String label) async {
+  final button = find.widgetWithText(FilledButton, label);
+  await tester.scrollUntilVisible(
+    button,
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.ensureVisible(button);
+  await tester.pumpAndSettle();
+  await tester.tap(button);
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -66,12 +79,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.widgetWithText(FilledButton, 'Save patient'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.widgetWithText(FilledButton, 'Save patient'));
+    await tapButton(tester, 'Save patient');
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
     // Back on the list, the new patient is shown.
@@ -89,12 +97,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('⚠ Outside normal range'), findsOneWidget);
     expect(find.text('MAP (calculated): 93.3 mmHg'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.widgetWithText(FilledButton, 'Save vitals'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.widgetWithText(FilledButton, 'Save vitals'));
+    await tapButton(tester, 'Save vitals');
     await tester.pumpAndSettle(const Duration(seconds: 1));
     expect(find.text('No vitals recorded yet.'), findsNothing);
 
