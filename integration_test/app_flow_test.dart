@@ -12,6 +12,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// Uses an in-memory database so the run never touches (or depends on) the encrypted
 /// on-device store, and never reaches the network.
+/// Types into the labelled field, scrolling it into view first. Forms are lazy lists, so on
+/// small screens (or with the keyboard open) a field may not be built until scrolled to.
+Future<void> enter(WidgetTester tester, String label, String text) async {
+  final field = find.widgetWithText(TextField, label);
+  if (field.evaluate().isEmpty) {
+    final scrollable = find.byType(Scrollable).first;
+    try {
+      await tester.scrollUntilVisible(field, -200, scrollable: scrollable);
+    } on StateError {
+      await tester.scrollUntilVisible(field, 200, scrollable: scrollable);
+    }
+  }
+  await tester.ensureVisible(field);
+  await tester.enterText(field, text);
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -37,17 +53,14 @@ void main() {
     // Register a patient.
     await tester.tap(find.text('Add patient'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextField, 'First name'),
-      'Maya',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Last name'),
-      'Patel',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Medical ID'),
-      'MRN-E2E-1',
+
+    await enter(tester, 'Medical ID', 'MRN-E2E-1');
+    await enter(tester, 'First name', 'Maya');
+    await enter(tester, 'Last name', 'Patel');
+    await tester.scrollUntilVisible(
+      find.text('Select date'),
+      200,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(find.text('Select date'));
     await tester.pumpAndSettle();
@@ -70,18 +83,9 @@ void main() {
     expect(find.text('No vitals recorded yet.'), findsOneWidget);
     await tester.tap(find.text('Record vitals'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Heart rate (bpm)'),
-      '130',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Systolic (mmHg)'),
-      '120',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Diastolic (mmHg)'),
-      '80',
-    );
+    await enter(tester, 'Heart rate (bpm)', '130');
+    await enter(tester, 'Systolic (mmHg)', '120');
+    await enter(tester, 'Diastolic (mmHg)', '80');
     await tester.pumpAndSettle();
     expect(find.text('⚠ Outside normal range'), findsOneWidget);
     expect(find.text('MAP (calculated): 93.3 mmHg'), findsOneWidget);
@@ -100,7 +104,19 @@ void main() {
     expect(find.text('Vitals dashboard'), findsOneWidget);
     await tester.tap(find.text('Table'));
     await tester.pumpAndSettle();
+    // The dashboard is a lazy list, so scroll each expectation into existence on small screens.
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.textContaining('Abnormal'),
+      200,
+      scrollable: scrollable,
+    );
     expect(find.textContaining('Abnormal'), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('Export PDF'),
+      200,
+      scrollable: scrollable,
+    );
     expect(find.text('Export CSV'), findsOneWidget);
     expect(find.text('Export PDF'), findsOneWidget);
 
