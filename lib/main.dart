@@ -13,11 +13,12 @@ import 'presentation/providers.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final secureStore = SecureStore();
-  final db = await openEncryptedDatabase(
-    await secureStore.databasePassphrase(),
-  );
+  // Independent startup work runs in parallel; only the DB needs the passphrase.
+  final (db, prefs) = await (
+    secureStore.databasePassphrase().then(openEncryptedDatabase),
+    SharedPreferences.getInstance(),
+  ).wait;
   if (kDebugMode && seedDemoData) await seedDemo(db);
-  final prefs = await SharedPreferences.getInstance();
   await BackgroundSync.register();
   runApp(
     ProviderScope(

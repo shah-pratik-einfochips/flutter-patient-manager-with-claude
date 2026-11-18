@@ -10,13 +10,22 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/export_service.dart';
 import '../../domain/dashboard_calculator.dart';
 import '../../domain/enums.dart';
-import '../../domain/validation_service.dart';
 import '../../domain/models.dart';
 import '../../domain/unit_conversion.dart';
+import '../../domain/validation_service.dart';
 import '../providers.dart';
 import '../widgets/common.dart';
 
 enum _View { chart, table }
+
+enum _ExportKind {
+  csv('Export CSV', Icons.table_view_outlined),
+  pdf('Export PDF', Icons.picture_as_pdf_outlined);
+
+  const _ExportKind(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key, required this.patientId});
@@ -32,7 +41,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _exporting = false;
 
   Future<void> _export(
-    String kind,
+    _ExportKind kind,
     Patient patient,
     List<VitalRecord> records,
     BuildContext buttonContext,
@@ -44,16 +53,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final repo = ref.read(repositoryProvider);
     setState(() => _exporting = true);
     try {
-      final file = kind == 'csv'
-          ? await ExportService.writeTemp(
-              utf8.encode(ExportService.csv(records)),
-              'csv',
-            )
-          : await ExportService.writeTemp(
-              await ExportService.pdf(patient, records),
-              'pdf',
-            );
-      await repo.log('export.$kind', patient.id);
+      final bytes = switch (kind) {
+        _ExportKind.csv => utf8.encode(ExportService.csv(records)),
+        _ExportKind.pdf => await ExportService.pdf(patient, records),
+      };
+      final file = await ExportService.writeTemp(bytes, kind.name);
+      await repo.log('export.${kind.name}', patient.id);
       await SharePlus.instance.share(
         ShareParams(files: [XFile(file.path)], sharePositionOrigin: origin),
       );
@@ -86,7 +91,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         const <VitalRecord>[];
     final now = DateTime.now();
     final recent = DashboardCalculator.recent(all, now: now);
-    final stats = DashboardCalculator.stats(recent, _type);
+    final points = DashboardCalculator.points(recent, _type);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Vitals dashboard')),
@@ -96,7 +101,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             Text(
-              'Past 7 days${patient == null ? '' : ' · ${patient.fullName}'}',
+              'Past ${DashboardCalculator.windowDays} days${patient == null ? '' : ' · ${patient.fullName}'}',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
@@ -130,42 +135,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               onSelectionChanged: (v) => setState(() => _view = v.first),
             ),
             const SizedBox(height: 16),
-            _StatsCard(type: _type, stats: stats),
+            _StatsCard(type: _type, stats: DashboardCalculator.statsOf(points)),
             const SizedBox(height: 16),
             if (recent.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
+              Padding(
+                padding: const EdgeInsets.all(24),
                 child: Center(
-                  child: Text('No vitals recorded in the past 7 days.'),
+                  child: Text(
+                    'No vitals recorded in the past ${DashboardCalculator.windowDays} days.',
+                  ),
                 ),
               )
             else if (_view == _View.chart)
-              _Chart(type: _type, records: recent, now: now)
+              _Chart(type: _type, points: points, now: now)
             else
-              _Table(type: _type, records: recent),
+              _Table(type: _type, points: points),
             const SectionTitle('Export'),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                Builder(
-                  builder: (ctx) => FilledButton.tonalIcon(
-                    onPressed: _exporting || patient == null || all.isEmpty
-                        ? null
-                        : () => _export('csv', patient, all, ctx),
-                    icon: const Icon(Icons.table_view_outlined),
-                    label: const Text('Export CSV'),
+                for (final kind in _ExportKind.values)
+                  Builder(
+                    builder: (ctx) => FilledButton.tonalIcon(
+                      onPressed: _exporting || patient == null || all.isEmpty
+                          ? null
+                          : () => _export(kind, patient, all, ctx),
+                      icon: Icon(kind.icon),
+                      label: Text(kind.label),
+                    ),
                   ),
-                ),
-                Builder(
-                  builder: (ctx) => FilledButton.tonalIcon(
-                    onPressed: _exporting || patient == null || all.isEmpty
-                        ? null
-                        : () => _export('pdf', patient, all, ctx),
-                    icon: const Icon(Icons.picture_as_pdf_outlined),
-                    label: const Text('Export PDF'),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -190,7 +189,7 @@ class _StatsCard extends StatelessWidget {
     final s = stats;
     final range = type.normalMin == null
         ? null
-        : 'Normal ${_fmt(type.normalMin!)}–${_fmt(type.normalMax!)} ${type.unit}';
+        : 'Normal ${type.normalMin!.toCompactString()}–${type.normalMax!.toCompactString()} ${type.unit}';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -256,8 +255,6 @@ class _StatsCard extends StatelessWidget {
   }
 }
 
-String _fmt(double v) => ValidationService.formatNumber(v);
-
 /// Diamond marker for abnormal readings so they differ from normal circles by shape, not just colour.
 class DiamondDotPainter extends FlDotPainter {
   const DiamondDotPainter({required this.color, this.size = 12});
@@ -297,15 +294,17 @@ class DiamondDotPainter extends FlDotPainter {
 }
 
 class _Chart extends StatelessWidget {
-  const _Chart({required this.type, required this.records, required this.now});
+  const _Chart({required this.type, required this.points, required this.now});
   final VitalType type;
-  final List<VitalRecord> records;
+  final List<VitalPoint> points;
   final DateTime now;
+
+  /// Width of the x axis, in hours.
+  static const _hours = DashboardCalculator.windowDays * 24.0;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final points = DashboardCalculator.points(records, type);
     if (points.isEmpty)
       return const Padding(
         padding: EdgeInsets.all(24),
@@ -314,8 +313,10 @@ class _Chart extends StatelessWidget {
     final start = DashboardCalculator.windowStart(now);
     double x(DateTime t) => t.difference(start).inMinutes / 60.0;
 
-    final values = points.map((p) => p.value);
-    var lo = values.reduce(math.min), hi = values.reduce(math.max);
+    final values = [for (final p in points) p.value];
+    final minValue = values.reduce(math.min),
+        maxValue = values.reduce(math.max);
+    var lo = minValue, hi = maxValue;
     if (type.normalMin != null) {
       lo = math.min(lo, type.normalMin!);
       hi = math.max(hi, type.normalMax!);
@@ -336,10 +337,11 @@ class _Chart extends StatelessWidget {
 
     final abnormalCount = points.where((p) => p.abnormal).length;
     final summary =
-        '${type.title} chart, ${points.length} readings over the past 7 days, '
-        'from ${_fmt(values.reduce(math.min).roundTo(1))} to ${_fmt(values.reduce(math.max).roundTo(1))} ${type.unit}'
+        '${type.title} chart, ${points.length} readings over the past ${DashboardCalculator.windowDays} days, '
+        'from ${minValue.roundTo(1).toCompactString()} to ${maxValue.roundTo(1).toCompactString()} ${type.unit}'
         '${abnormalCount == 0 ? ', none outside the normal range' : ', $abnormalCount outside the normal range'}. Switch to Table view for each reading.';
     final lineColor = scheme.primary;
+    final dayLabel = DateFormat('E d');
     final abnormalColor = scheme.error;
 
     return Semantics(
@@ -355,7 +357,7 @@ class _Chart extends StatelessWidget {
                 child: LineChart(
                   LineChartData(
                     minX: 0,
-                    maxX: 168,
+                    maxX: _hours,
                     minY: minY,
                     maxY: maxY,
                     gridData: FlGridData(
@@ -386,7 +388,7 @@ class _Chart extends StatelessWidget {
                           getTitlesWidget: (v, meta) => SideTitleWidget(
                             meta: meta,
                             child: Text(
-                              _fmt(v.roundTo(1)),
+                              v.roundTo(1).toCompactString(),
                               style: const TextStyle(fontSize: 11),
                             ),
                           ),
@@ -397,12 +399,12 @@ class _Chart extends StatelessWidget {
                           showTitles: true,
                           interval: 24,
                           reservedSize: 28,
-                          getTitlesWidget: (v, meta) => v > 168
+                          getTitlesWidget: (v, meta) => v > _hours
                               ? const SizedBox.shrink()
                               : SideTitleWidget(
                                   meta: meta,
                                   child: Text(
-                                    DateFormat('E d').format(
+                                    dayLabel.format(
                                       start.add(Duration(hours: v.toInt())),
                                     ),
                                     style: const TextStyle(fontSize: 11),
@@ -479,18 +481,18 @@ class _Chart extends StatelessWidget {
 }
 
 class _Table extends StatelessWidget {
-  const _Table({required this.type, required this.records});
+  const _Table({required this.type, required this.points});
   final VitalType type;
-  final List<VitalRecord> records;
+  final List<VitalPoint> points;
 
   @override
   Widget build(BuildContext context) {
-    final points = DashboardCalculator.points(records, type).reversed.toList();
     if (points.isEmpty)
       return const Padding(
         padding: EdgeInsets.all(24),
         child: Center(child: Text('No readings to show.')),
       );
+    final timeFormat = DateFormat.MMMd().add_jm();
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
@@ -503,10 +505,10 @@ class _Table extends StatelessWidget {
           const DataColumn(label: Text('Status')),
         ],
         rows: [
-          for (final p in points)
+          for (final p in points.reversed)
             DataRow(
               cells: [
-                DataCell(Text(DateFormat.MMMd().add_jm().format(p.time))),
+                DataCell(Text(timeFormat.format(p.time))),
                 DataCell(Text(p.value.roundTo(1).toString())),
                 DataCell(
                   Row(

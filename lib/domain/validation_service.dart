@@ -1,4 +1,5 @@
 import 'enums.dart';
+import 'unit_conversion.dart';
 
 /// Outcome of a validation: [error] is null when the value is valid.
 class ValidationResult {
@@ -101,7 +102,7 @@ abstract final class ValidationService {
       return const ValidationResult.valid();
     }
     return ValidationResult.invalid(
-      '${type.title} must be between ${formatNumber(type.validMin)} and ${formatNumber(type.validMax)} ${type.unit}',
+      '${type.title} must be between ${type.validMin.toCompactString()} and ${type.validMax.toCompactString()} ${type.unit}',
     );
   }
 
@@ -127,7 +128,4 @@ abstract final class ValidationService {
     if (lo == null || hi == null) return false;
     return value < lo || value > hi;
   }
-
-  static String formatNumber(double v) =>
-      v % 1 == 0 ? v.toInt().toString() : v.toString();
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../data/patient_repository.dart';
 import '../../domain/enums.dart';
@@ -40,7 +39,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
   BloodType _bloodType = BloodType.unknown;
   ExaminationType _examType = ExaminationType.routineCheckup;
   bool _consent = false;
-  DateTime? _consentAt;
   Patient? _existing;
   bool _loaded = false;
   bool _saving = false;
@@ -93,7 +91,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
           _bloodType = p.bloodType;
           _examType = p.examType;
           _consent = p.consentGiven;
-          _consentAt = p.consentAt;
         });
       }
     }
@@ -154,10 +151,8 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
               examType: _examType,
               performedBy: _performedBy.text.trim(),
               referredBy: _referredBy.text.trim(),
-              consentGiven: _consent,
-              consentAt: _consent ? (_consentAt ?? DateTime.now()) : null,
-              clearConsentAt: !_consent,
-            );
+            )
+            .withConsent(_consent);
     try {
       await ref.read(repositoryProvider).savePatient(patient, isNew: _isNew);
       if (mounted) context.pop();
@@ -237,9 +232,7 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                             ),
                           ),
                           child: Text(
-                            _dob == null
-                                ? 'Select date'
-                                : DateFormat.yMMMd().format(_dob!),
+                            _dob == null ? 'Select date' : formatDate(_dob!),
                           ),
                         ),
                       ),

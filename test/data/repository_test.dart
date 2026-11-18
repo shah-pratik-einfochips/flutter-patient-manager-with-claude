@@ -7,36 +7,7 @@ import 'package:patient_health/data/patient_repository.dart';
 import 'package:patient_health/domain/enums.dart';
 import 'package:patient_health/domain/models.dart';
 
-import 'fhir_test.dart' show samplePatient;
-
-class MockFhir implements FhirApi {
-  final patients = <Json>[];
-  final observations = <Json>[];
-  var nextId = 1;
-  Object? failUpsert;
-  Json? remotePatient;
-  List<Json> remoteObservations = [];
-
-  @override
-  Future<Json> upsertPatient(Json json) async {
-    if (failUpsert != null) throw failUpsert!;
-    patients.add(json);
-    return {...json, 'id': json['id'] ?? 'srv-${nextId++}'};
-  }
-
-  @override
-  Future<Json> fetchPatient(String id) async => remotePatient ?? {'id': id};
-
-  @override
-  Future<String> createObservation(Json json) async {
-    observations.add(json);
-    return 'obs-${nextId++}';
-  }
-
-  @override
-  Future<List<Json>> fetchObservations(String patientId) async =>
-      remoteObservations;
-}
+import '../support/fixtures.dart';
 
 void main() {
   late AppDatabase db;
