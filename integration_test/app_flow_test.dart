@@ -7,40 +7,46 @@ import 'package:patient_health/data/database.dart';
 import 'package:patient_health/presentation/providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// End-to-end flow on a real device/simulator: register a patient, record vitals,
-/// see them on the dashboard in both chart and table views.
-///
-/// Uses an in-memory database so the run never touches (or depends on) the encrypted
-/// on-device store, and never reaches the network.
 /// Types into the labelled field, scrolling it into view first. Forms are lazy lists, so on
 /// small screens (or with the keyboard open) a field may not be built until scrolled to.
 Future<void> enter(WidgetTester tester, String label, String text) async {
   final field = find.widgetWithText(TextField, label);
   if (field.evaluate().isEmpty) {
     final scrollable = find.byType(Scrollable).first;
+    // Fields are filled top to bottom, so the next one is almost always below.
     try {
-      await tester.scrollUntilVisible(field, -200, scrollable: scrollable);
-    } on StateError {
       await tester.scrollUntilVisible(field, 200, scrollable: scrollable);
+    } on StateError {
+      await tester.scrollUntilVisible(field, -200, scrollable: scrollable);
     }
   }
   await tester.ensureVisible(field);
   await tester.enterText(field, text);
 }
 
-/// Scrolls the button fully into view (not just partly on screen), then taps it.
-Future<void> tapButton(WidgetTester tester, String label) async {
-  final button = find.widgetWithText(FilledButton, label);
+/// Scrolls [target] fully into view (not just partly on screen), closes the keyboard so it
+/// cannot cover the target, then taps it.
+Future<void> tapVisible(WidgetTester tester, Finder target) async {
   await tester.scrollUntilVisible(
-    button,
+    target,
     200,
     scrollable: find.byType(Scrollable).first,
   );
-  await tester.ensureVisible(button);
+  FocusManager.instance.primaryFocus?.unfocus();
   await tester.pumpAndSettle();
-  await tester.tap(button);
+  await tester.ensureVisible(target);
+  await tester.pumpAndSettle();
+  await tester.tap(target);
 }
 
+Future<void> tapButton(WidgetTester tester, String label) =>
+    tapVisible(tester, find.widgetWithText(FilledButton, label));
+
+/// End-to-end flow on a real device/simulator: register a patient, record vitals,
+/// see them on the dashboard in both chart and table views.
+///
+/// Uses an in-memory database so the run never touches (or depends on) the encrypted
+/// on-device store, and never reaches the network.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -70,12 +76,7 @@ void main() {
     await enter(tester, 'Medical ID', 'MRN-E2E-1');
     await enter(tester, 'First name', 'Maya');
     await enter(tester, 'Last name', 'Patel');
-    await tester.scrollUntilVisible(
-      find.text('Select date'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.text('Select date'));
+    await tapVisible(tester, find.text('Select date'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
