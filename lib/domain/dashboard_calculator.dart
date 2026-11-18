@@ -26,10 +26,17 @@ class VitalPoint {
 }
 
 abstract final class DashboardCalculator {
+  /// Length of the dashboard window, in days.
+  static const windowDays = 7;
+
+  /// Start of the dashboard window ending at [now].
+  static DateTime windowStart(DateTime now) =>
+      now.subtract(const Duration(days: windowDays));
+
   /// Records from the last [days] days up to [now], oldest first.
   static List<VitalRecord> recent(
     List<VitalRecord> records, {
-    int days = 7,
+    int days = windowDays,
     DateTime? now,
   }) {
     final end = now ?? DateTime.now();

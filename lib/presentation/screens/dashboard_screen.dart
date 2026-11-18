@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/export_service.dart';
 import '../../domain/dashboard_calculator.dart';
 import '../../domain/enums.dart';
+import '../../domain/validation_service.dart';
 import '../../domain/models.dart';
 import '../../domain/unit_conversion.dart';
 import '../providers.dart';
@@ -228,8 +229,7 @@ class _StatsCard extends StatelessWidget {
     );
   }
 
-  bool _abnormal(double v) =>
-      type.normalMin != null && (v < type.normalMin! || v > type.normalMax!);
+  bool _abnormal(double v) => ValidationService.isAbnormal(v, type);
 
   Widget _stat(
     BuildContext context,
@@ -256,7 +256,7 @@ class _StatsCard extends StatelessWidget {
   }
 }
 
-String _fmt(double v) => v % 1 == 0 ? v.toInt().toString() : v.toString();
+String _fmt(double v) => ValidationService.formatNumber(v);
 
 /// Diamond marker for abnormal readings so they differ from normal circles by shape, not just colour.
 class DiamondDotPainter extends FlDotPainter {
@@ -311,7 +311,7 @@ class _Chart extends StatelessWidget {
         padding: EdgeInsets.all(24),
         child: Center(child: Text('No readings to chart.')),
       );
-    final start = now.subtract(const Duration(days: 7));
+    final start = DashboardCalculator.windowStart(now);
     double x(DateTime t) => t.difference(start).inMinutes / 60.0;
 
     final values = points.map((p) => p.value);

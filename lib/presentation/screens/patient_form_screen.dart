@@ -170,8 +170,6 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
     }
   }
 
-  String? _check(ValidationResult r) => r.error;
-
   @override
   Widget build(BuildContext context) {
     final dobError = _dobTouched
@@ -211,17 +209,19 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                     _field(
                       _first,
                       'First name',
-                      validator: (v) => _check(
-                        ValidationService.validateName(v ?? '', 'First name'),
-                      ),
+                      validator: (v) => ValidationService.validateName(
+                        v ?? '',
+                        'First name',
+                      ).error,
                       cap: TextCapitalization.words,
                     ),
                     _field(
                       _last,
                       'Last name',
-                      validator: (v) => _check(
-                        ValidationService.validateName(v ?? '', 'Last name'),
-                      ),
+                      validator: (v) => ValidationService.validateName(
+                        v ?? '',
+                        'Last name',
+                      ).error,
                       cap: TextCapitalization.words,
                     ),
                     Padding(
@@ -261,21 +261,21 @@ class _PatientFormScreenState extends ConsumerState<PatientFormScreen> {
                       'Phone (optional)',
                       keyboard: TextInputType.phone,
                       validator: (v) =>
-                          _check(ValidationService.validatePhone(v ?? '')),
+                          ValidationService.validatePhone(v ?? '').error,
                     ),
                     _field(
                       _email,
                       'Email (optional)',
                       keyboard: TextInputType.emailAddress,
                       validator: (v) =>
-                          _check(ValidationService.validateEmail(v ?? '')),
+                          ValidationService.validateEmail(v ?? '').error,
                     ),
                     const SectionTitle('Medical'),
                     _field(
                       _medicalId,
                       'Medical ID',
                       validator: (v) =>
-                          _check(ValidationService.validateMedicalId(v ?? '')),
+                          ValidationService.validateMedicalId(v ?? '').error,
                     ),
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),

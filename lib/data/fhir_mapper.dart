@@ -1,6 +1,5 @@
 import '../domain/enums.dart';
 import '../domain/models.dart';
-import 'database.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -277,9 +276,6 @@ abstract final class FhirMapper {
     final v = q is Map ? q['value'] : null;
     return v is num ? v.toDouble() : null;
   }
-
-  /// Used by tests and the repository to turn a date back into the stored epoch day.
-  static int epochDay(DateTime d) => AppDatabase.epochDay(d);
 }
 
 class _Spec {

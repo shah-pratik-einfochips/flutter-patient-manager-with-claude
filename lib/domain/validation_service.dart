@@ -101,7 +101,7 @@ abstract final class ValidationService {
       return const ValidationResult.valid();
     }
     return ValidationResult.invalid(
-      '${type.title} must be between ${_fmt(type.validMin)} and ${_fmt(type.validMax)} ${type.unit}',
+      '${type.title} must be between ${formatNumber(type.validMin)} and ${formatNumber(type.validMax)} ${type.unit}',
     );
   }
 
@@ -128,6 +128,6 @@ abstract final class ValidationService {
     return value < lo || value > hi;
   }
 
-  static String _fmt(double v) =>
+  static String formatNumber(double v) =>
       v % 1 == 0 ? v.toInt().toString() : v.toString();
 }
