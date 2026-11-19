@@ -8,8 +8,7 @@ import 'package:patient_health/domain/models.dart';
 import 'package:patient_health/presentation/providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../data/fhir_test.dart' show samplePatient;
-import '../data/repository_test.dart' show MockFhir;
+import '../support/fixtures.dart';
 
 class Harness {
   Harness(this.db, this.fhir, this.router);
@@ -19,7 +18,12 @@ class Harness {
 }
 
 /// Pumps [screen] on top of a home route so `context.pop()` works, using an in-memory DB.
-Future<Harness> pumpScreen(WidgetTester tester, Widget screen, {List<Patient> patients = const [], List<VitalRecord> vitals = const []}) async {
+Future<Harness> pumpScreen(
+  WidgetTester tester,
+  Widget screen, {
+  List<Patient> patients = const [],
+  List<VitalRecord> vitals = const [],
+}) async {
   // Tall surface so lazily-built list items are all on screen.
   tester.view.physicalSize = const Size(800, 3600);
   tester.view.devicePixelRatio = 1;
@@ -38,19 +42,29 @@ Future<Harness> pumpScreen(WidgetTester tester, Widget screen, {List<Patient> pa
       await db.insertVital(v);
     }
   });
-  final router = GoRouter(routes: [
-    GoRoute(path: '/', builder: (_, _) => const Scaffold(body: Text('home'))),
-    GoRoute(path: '/screen', builder: (_, _) => screen),
-  ]);
-  await tester.pumpWidget(ProviderScope(
-    overrides: [
-      databaseProvider.overrideWithValue(db),
-      sharedPreferencesProvider.overrideWithValue(prefs),
+  final router = GoRouter(
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (_, _) => const Scaffold(body: Text('home')),
+      ),
+      GoRoute(path: '/screen', builder: (_, _) => screen),
     ],
-    child: Consumer(
-      builder: (_, ref, _) => MaterialApp.router(theme: buildTheme(Brightness.light), routerConfig: router),
+  );
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
+      child: Consumer(
+        builder: (_, ref, _) => MaterialApp.router(
+          theme: buildTheme(Brightness.light),
+          routerConfig: router,
+        ),
+      ),
     ),
-  ));
+  );
   router.push('/screen');
   await tester.pumpAndSettle();
   return Harness(db, fhir, router);
@@ -58,15 +72,17 @@ Future<Harness> pumpScreen(WidgetTester tester, Widget screen, {List<Patient> pa
 
 /// Lets real async work (drift streams and queries) complete, then rebuilds.
 Future<void> settleDb(WidgetTester tester) async {
-  await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 150)));
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 150)),
+  );
   // Fixed pumps instead of pumpAndSettle: charts animate and pumpAndSettle can spin for a long time.
   for (var i = 0; i < 4; i++) {
     await tester.pump(const Duration(milliseconds: 400));
   }
 }
 
-Patient patient({String id = 'p1', String medicalId = 'MRN-001'}) => samplePatient(id: id).copyWith(medicalId: medicalId);
-
+Patient patient({String id = 'p1', String medicalId = 'MRN-001'}) =>
+    samplePatient(id: id).copyWith(medicalId: medicalId);
 
 /// Like testWidgets, but tears the tree and database down inside the test body so
 /// drift's stream-cleanup timers are gone before the framework checks for pending timers.

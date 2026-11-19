@@ -1,6 +1,5 @@
 import '../domain/enums.dart';
 import '../domain/models.dart';
-import 'database.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -82,57 +81,34 @@ abstract final class FhirMapper {
 
   // region Observation
 
-  static final _specs = <_Spec>[
+  static const _specs = [
+    _Spec(VitalType.heartRate, '8867-4', 'Heart rate', '/min'),
+    _Spec(VitalType.height, '8302-2', 'Body height', 'cm'),
+    _Spec(VitalType.weight, '29463-7', 'Body weight', 'kg'),
+    _Spec(VitalType.temperature, '8310-5', 'Body temperature', 'Cel'),
+    _Spec(VitalType.respiratoryRate, '9279-1', 'Respiratory rate', '/min'),
     _Spec(
-      '8867-4',
-      'Heart rate',
-      '/min',
-      (r) => r.heartRate,
-      (r, v) => r.copyWith(heartRate: v),
-    ),
-    _Spec(
-      '8302-2',
-      'Body height',
-      'cm',
-      (r) => r.heightCm,
-      (r, v) => r.copyWith(heightCm: v),
-    ),
-    _Spec(
-      '29463-7',
-      'Body weight',
-      'kg',
-      (r) => r.weightKg,
-      (r, v) => r.copyWith(weightKg: v),
-    ),
-    _Spec(
-      '8310-5',
-      'Body temperature',
-      'Cel',
-      (r) => r.temperatureC,
-      (r, v) => r.copyWith(temperatureC: v),
-    ),
-    _Spec(
-      '9279-1',
-      'Respiratory rate',
-      '/min',
-      (r) => r.respiratoryRate,
-      (r, v) => r.copyWith(respiratoryRate: v),
-    ),
-    _Spec(
+      VitalType.spo2,
       '59408-5',
       'Oxygen saturation by pulse oximetry',
       '%',
-      (r) => r.spo2,
-      (r, v) => r.copyWith(spo2: v),
     ),
-    _Spec(
-      '72514-3',
-      'Pain severity 0-10',
-      '{score}',
-      (r) => r.painLevel,
-      (r, v) => r.copyWith(painLevel: v),
-    ),
+    _Spec(VitalType.painLevel, '72514-3', 'Pain severity 0-10', '{score}'),
   ];
+
+  // Blood pressure is one panel Observation with two components, plus MAP on its own.
+  static const _bpPanel = '85354-9';
+  static const _bpComponents = [
+    _Spec(VitalType.systolic, '8480-6', 'Systolic blood pressure', _mmHg),
+    _Spec(VitalType.diastolic, '8462-4', 'Diastolic blood pressure', _mmHg),
+  ];
+  static const _meanBp = _Spec(
+    VitalType.map,
+    '8478-0',
+    'Mean blood pressure',
+    _mmHg,
+  );
+  static const _mmHg = 'mm[Hg]';
 
   static Json _codeable(String code, String display) => {
     'coding': [
@@ -157,11 +133,10 @@ abstract final class FhirMapper {
     ],
   };
 
-  static Json _observation(
+  /// Fields every vital-signs Observation shares.
+  static Json _envelope(
     String code,
     String display,
-    double v,
-    String unit,
     Json subject,
     String whenIso,
   ) => {
@@ -171,7 +146,11 @@ abstract final class FhirMapper {
     'code': _codeable(code, display),
     'subject': subject,
     'effectiveDateTime': whenIso,
-    'valueQuantity': _quantity(v, unit),
+  };
+
+  static Json _observation(_Spec s, double v, Json subject, String whenIso) => {
+    ..._envelope(s.code, s.display, subject, whenIso),
+    'valueQuantity': _quantity(v, s.unit),
   };
 
   /// One BP panel (systolic + diastolic components) plus MAP,
@@ -182,38 +161,20 @@ abstract final class FhirMapper {
     final out = <Json>[];
     if (r.systolic != null && r.diastolic != null) {
       out.add({
-        'resourceType': 'Observation',
-        'status': 'final',
-        'category': [_vitalSigns],
-        'code': _codeable('85354-9', 'Blood pressure panel'),
-        'subject': subject,
-        'effectiveDateTime': whenIso,
+        ..._envelope(_bpPanel, 'Blood pressure panel', subject, whenIso),
         'component': [
-          {
-            'code': _codeable('8480-6', 'Systolic blood pressure'),
-            'valueQuantity': _quantity(r.systolic!, 'mm[Hg]'),
-          },
-          {
-            'code': _codeable('8462-4', 'Diastolic blood pressure'),
-            'valueQuantity': _quantity(r.diastolic!, 'mm[Hg]'),
-          },
+          for (final c in _bpComponents)
+            {
+              'code': _codeable(c.code, c.display),
+              'valueQuantity': _quantity(r.value(c.type)!, c.unit),
+            },
         ],
       });
-      out.add(
-        _observation(
-          '8478-0',
-          'Mean blood pressure',
-          r.map!,
-          'mm[Hg]',
-          subject,
-          whenIso,
-        ),
-      );
+      out.add(_observation(_meanBp, r.map!, subject, whenIso));
     }
     for (final s in _specs) {
-      final v = s.read(r);
-      if (v != null)
-        out.add(_observation(s.code, s.display, v, s.unit, subject, whenIso));
+      final v = r.value(s.type);
+      if (v != null) out.add(_observation(s, v, subject, whenIso));
     }
     return out;
   }
@@ -229,26 +190,15 @@ abstract final class FhirMapper {
     var found = false;
     for (final o in observations) {
       final code = _firstCode(o);
-      if (code == '85354-9') {
-        final components = o['component'];
-        if (components is! List) continue;
-        for (final c in components.whereType<Map>()) {
-          final v = _quantityValue(c);
-          if (v == null) continue;
-          switch (_firstCode(c)) {
-            case '8480-6':
-              r = r.copyWith(systolic: v);
-              found = true;
-            case '8462-4':
-              r = r.copyWith(diastolic: v);
-              found = true;
-          }
-        }
-      } else {
-        final spec = _specs.where((s) => s.code == code).firstOrNull;
-        final v = _quantityValue(o);
+      final (specs, parts) = code == _bpPanel
+          ? (_bpComponents, o['component'])
+          : (_specs, [o]);
+      if (parts is! List) continue;
+      for (final part in parts.whereType<Map>()) {
+        final spec = _spec(specs, _firstCode(part));
+        final v = _quantityValue(part);
         if (spec != null && v != null) {
-          r = spec.write(r, v);
+          r = r.withValue(spec.type, v);
           found = true;
         }
       }
@@ -260,6 +210,9 @@ abstract final class FhirMapper {
 
   static String _date(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  static _Spec? _spec(List<_Spec> specs, String? code) =>
+      specs.where((s) => s.code == code).firstOrNull;
 
   static Map? _firstMap(Object? list) =>
       list is List && list.isNotEmpty && list.first is Map
@@ -277,16 +230,13 @@ abstract final class FhirMapper {
     final v = q is Map ? q['value'] : null;
     return v is num ? v.toDouble() : null;
   }
-
-  /// Used by tests and the repository to turn a date back into the stored epoch day.
-  static int epochDay(DateTime d) => AppDatabase.epochDay(d);
 }
 
+/// LOINC coding and UCUM unit for one vital.
 class _Spec {
-  _Spec(this.code, this.display, this.unit, this.read, this.write);
+  const _Spec(this.type, this.code, this.display, this.unit);
+  final VitalType type;
   final String code;
   final String display;
   final String unit;
-  final double? Function(VitalRecord) read;
-  final VitalRecord Function(VitalRecord, double) write;
 }

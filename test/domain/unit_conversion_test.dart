@@ -45,32 +45,86 @@ void main() {
 
   group('VitalRecord', () {
     test('MAP is derived only when both pressures exist', () {
-      expect(VitalRecord(patientId: 'p', recordedAt: DateTime.now(), systolic: 120, diastolic: 80).map, 93.3);
-      expect(VitalRecord(patientId: 'p', recordedAt: DateTime.now(), systolic: 120).map, isNull);
+      expect(
+        VitalRecord(
+          patientId: 'p',
+          recordedAt: DateTime.now(),
+          systolic: 120,
+          diastolic: 80,
+        ).map,
+        93.3,
+      );
+      expect(
+        VitalRecord(
+          patientId: 'p',
+          recordedAt: DateTime.now(),
+          systolic: 120,
+        ).map,
+        isNull,
+      );
     });
     test('value() maps each type', () {
-      final r = VitalRecord(patientId: 'p', recordedAt: DateTime.now(), systolic: 120, diastolic: 80, heartRate: 70, heightCm: 170, weightKg: 65, temperatureC: 36.6, respiratoryRate: 16, spo2: 98, painLevel: 2);
-      expect([for (final t in VitalType.values) r.value(t)], [120, 80, 93.3, 70, 170, 65, 36.6, 16, 98, 2]);
+      final r = VitalRecord(
+        patientId: 'p',
+        recordedAt: DateTime.now(),
+        systolic: 120,
+        diastolic: 80,
+        heartRate: 70,
+        heightCm: 170,
+        weightKg: 65,
+        temperatureC: 36.6,
+        respiratoryRate: 16,
+        spo2: 98,
+        painLevel: 2,
+      );
+      expect(
+        [for (final t in VitalType.values) r.value(t)],
+        [120, 80, 93.3, 70, 170, 65, 36.6, 16, 98, 2],
+      );
     });
   });
 
   group('DashboardCalculator', () {
     final now = DateTime(2026, 6, 15, 12);
-    VitalRecord rec(int daysAgo, {double? hr}) => VitalRecord(patientId: 'p', recordedAt: now.subtract(Duration(days: daysAgo)), heartRate: hr);
+    VitalRecord rec(int daysAgo, {double? hr}) => VitalRecord(
+      patientId: 'p',
+      recordedAt: now.subtract(Duration(days: daysAgo)),
+      heartRate: hr,
+    );
 
     test('recent keeps 7 days, drops older and future, sorts oldest first', () {
-      final out = DashboardCalculator.recent([rec(1), rec(8), rec(6), VitalRecord(patientId: 'p', recordedAt: now.add(const Duration(hours: 1)))], now: now);
+      final out = DashboardCalculator.recent([
+        rec(1),
+        rec(8),
+        rec(6),
+        VitalRecord(
+          patientId: 'p',
+          recordedAt: now.add(const Duration(hours: 1)),
+        ),
+      ], now: now);
       expect(out.length, 2);
       expect(out.first.recordedAt.isBefore(out.last.recordedAt), isTrue);
     });
     test('stats', () {
       final records = [rec(3, hr: 58), rec(2, hr: 72), rec(1, hr: 130)];
       final s = DashboardCalculator.stats(records, VitalType.heartRate)!;
-      expect((s.min, s.max, s.average, s.latest, s.count), (58.0, 130.0, 86.7, 130.0, 3));
+      expect(
+        (s.min, s.max, s.average, s.latest, s.count),
+        (58.0, 130.0, 86.7, 130.0, 3),
+      );
     });
-    test('stats null when no readings', () => expect(DashboardCalculator.stats([rec(1)], VitalType.heartRate), isNull));
+    test(
+      'stats null when no readings',
+      () => expect(
+        DashboardCalculator.stats([rec(1)], VitalType.heartRate),
+        isNull,
+      ),
+    );
     test('points flag abnormal values', () {
-      final pts = DashboardCalculator.points([rec(2, hr: 58), rec(1, hr: 72)], VitalType.heartRate);
+      final pts = DashboardCalculator.points([
+        rec(2, hr: 58),
+        rec(1, hr: 72),
+      ], VitalType.heartRate);
       expect(pts.map((p) => p.abnormal), [true, false]);
     });
   });

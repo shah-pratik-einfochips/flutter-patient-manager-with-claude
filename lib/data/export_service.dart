@@ -38,8 +38,10 @@ abstract final class ExportService {
     ].map((row) => row.map(_escape).join(',')).join('\n');
   }
 
+  static final _needsQuoting = RegExp(r'[,"\n]');
+
   static String _escape(String s) =>
-      s.contains(RegExp(r'[,"\n]')) ? '"${s.replaceAll('"', '""')}"' : s;
+      s.contains(_needsQuoting) ? '"${s.replaceAll('"', '""')}"' : s;
 
   /// Short column headings so they never overlap at the PDF's small font size.
   /// (The built-in PDF font is Latin-1 only, so no subscript characters.)

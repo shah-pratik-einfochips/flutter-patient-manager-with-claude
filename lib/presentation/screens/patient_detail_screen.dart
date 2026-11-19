@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../domain/enums.dart';
 import '../../domain/models.dart';
@@ -178,7 +177,7 @@ class _Summary extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = <(String, String)>[
       ('Medical ID', patient.medicalId),
-      ('Date of birth', DateFormat.yMMMd().format(patient.dob)),
+      ('Date of birth', formatDate(patient.dob)),
       ('Gender', patient.gender.title),
       ('Blood type', patient.bloodType.label),
       if (patient.phone.isNotEmpty) ('Phone', patient.phone),
@@ -193,7 +192,7 @@ class _Summary extends StatelessWidget {
       (
         'Consent',
         patient.consentGiven
-            ? 'Given${patient.consentAt == null ? '' : ' on ${DateFormat.yMMMd().format(patient.consentAt!)}'}'
+            ? 'Given${patient.consentAt == null ? '' : ' on ${formatDate(patient.consentAt!)}'}'
             : 'Not given - data is not uploaded',
       ),
       ('Server', patient.fhirId == null ? 'Not uploaded' : 'Uploaded'),
@@ -262,7 +261,7 @@ class _VitalTile extends StatelessWidget {
             ? 'Contains abnormal values'
             : 'All values normal',
       ),
-      title: Text(DateFormat.yMMMd().add_jm().format(record.recordedAt)),
+      title: Text(formatDateTime(record.recordedAt)),
       subtitle: Text(parts.isEmpty ? 'Other measurements' : parts.join(' · ')),
     );
   }

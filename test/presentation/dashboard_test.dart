@@ -13,17 +13,34 @@ List<VitalRecord> seed() {
   const hr = [72.0, 58.0, 130.0];
   return [
     for (var i = 0; i < 3; i++)
-      VitalRecord(patientId: 'p1', recordedAt: now.subtract(Duration(days: 2 - i)), systolic: 120, diastolic: 80, heartRate: hr[i]),
+      VitalRecord(
+        patientId: 'p1',
+        recordedAt: now.subtract(Duration(days: 2 - i)),
+        systolic: 120,
+        diastolic: 80,
+        heartRate: hr[i],
+      ),
     // Older than 7 days: must not appear in stats.
-    VitalRecord(patientId: 'p1', recordedAt: now.subtract(const Duration(days: 10)), heartRate: 200),
+    VitalRecord(
+      patientId: 'p1',
+      recordedAt: now.subtract(const Duration(days: 10)),
+      heartRate: 200,
+    ),
   ];
 }
 
 void main() {
   group('DashboardScreen', () {
-    appTest('shows 7-day stats and a text summary of the chart', (tester) async {
+    appTest('shows 7-day stats and a text summary of the chart', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
-      await pumpScreen(tester, const DashboardScreen(patientId: 'p1'), patients: [patient()], vitals: seed());
+      await pumpScreen(
+        tester,
+        const DashboardScreen(patientId: 'p1'),
+        patients: [patient()],
+        vitals: seed(),
+      );
       await settleDb(tester);
       expect(find.text('Heart Rate (bpm)'), findsOneWidget);
       expect(find.text('Normal 60–100 bpm'), findsOneWidget);
@@ -31,12 +48,24 @@ void main() {
       expect(find.text('⚠ 130.0'), findsOneWidget);
       expect(find.text('86.7'), findsOneWidget);
       expect(find.text('58.0'), findsOneWidget);
-      expect(find.bySemanticsLabel(RegExp(r'Heart Rate chart, 3 readings .* 2 outside the normal range')), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(
+          RegExp(r'Heart Rate chart, 3 readings .* 2 outside the normal range'),
+        ),
+        findsOneWidget,
+      );
       handle.dispose();
     });
 
-    appTest('table view marks abnormal rows with text, not only colour', (tester) async {
-      await pumpScreen(tester, const DashboardScreen(patientId: 'p1'), patients: [patient()], vitals: seed());
+    appTest('table view marks abnormal rows with text, not only colour', (
+      tester,
+    ) async {
+      await pumpScreen(
+        tester,
+        const DashboardScreen(patientId: 'p1'),
+        patients: [patient()],
+        vitals: seed(),
+      );
       await settleDb(tester);
       await tester.tap(find.text('Table'));
       await tester.pumpAndSettle();
@@ -45,7 +74,12 @@ void main() {
     });
 
     appTest('switching vital type updates the stats', (tester) async {
-      await pumpScreen(tester, const DashboardScreen(patientId: 'p1'), patients: [patient()], vitals: seed());
+      await pumpScreen(
+        tester,
+        const DashboardScreen(patientId: 'p1'),
+        patients: [patient()],
+        vitals: seed(),
+      );
       await settleDb(tester);
       await tester.tap(find.widgetWithText(ChoiceChip, 'Systolic BP'));
       await tester.pumpAndSettle();
@@ -54,16 +88,42 @@ void main() {
     });
 
     appTest('empty period shows a message and disables export', (tester) async {
-      await pumpScreen(tester, const DashboardScreen(patientId: 'p1'), patients: [patient()]);
+      await pumpScreen(
+        tester,
+        const DashboardScreen(patientId: 'p1'),
+        patients: [patient()],
+      );
       await settleDb(tester);
-      expect(find.text('No vitals recorded in the past 7 days.'), findsOneWidget);
-      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Export CSV')).onPressed, isNull);
+      expect(
+        find.text('No vitals recorded in the past 7 days.'),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Export CSV'),
+            )
+            .onPressed,
+        isNull,
+      );
     });
   });
 
   group('PatientDetailScreen', () {
-    appTest('shows demographics, consent state and recent vitals', (tester) async {
-      await pumpScreen(tester, const PatientDetailScreen(patientId: 'p1'), patients: [patient().copyWith(consentGiven: true, consentAt: DateTime(2026, 1, 2))], vitals: seed());
+    appTest('shows demographics, consent state and recent vitals', (
+      tester,
+    ) async {
+      await pumpScreen(
+        tester,
+        const PatientDetailScreen(patientId: 'p1'),
+        patients: [
+          patient().copyWith(
+            consentGiven: true,
+            consentAt: DateTime(2026, 1, 2),
+          ),
+        ],
+        vitals: seed(),
+      );
       await settleDb(tester);
       expect(find.text('Anna Lee'), findsOneWidget);
       expect(find.text('MRN-001'), findsOneWidget);
@@ -74,7 +134,11 @@ void main() {
     });
 
     appTest('uploading without consent reports why', (tester) async {
-      await pumpScreen(tester, const PatientDetailScreen(patientId: 'p1'), patients: [patient()]);
+      await pumpScreen(
+        tester,
+        const PatientDetailScreen(patientId: 'p1'),
+        patients: [patient()],
+      );
       await settleDb(tester);
       expect(find.text('Not given - data is not uploaded'), findsOneWidget);
     });
@@ -87,7 +151,9 @@ void main() {
   });
 
   group('SettingsScreen', () {
-    appTest('lists the three environments and persists the choice', (tester) async {
+    appTest('lists the three environments and persists the choice', (
+      tester,
+    ) async {
       await pumpScreen(tester, const SettingsScreen());
       await settleDb(tester);
       for (final e in AppEnvironment.values) {
