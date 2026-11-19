@@ -6,6 +6,9 @@ extension RoundTo on double {
     final p = math.pow(10, places).toDouble();
     return (abs() * p + 0.5).floorToDouble() * (this < 0 ? -1 : 1) / p;
   }
+
+  /// Whole numbers without a trailing ".0" (60.0 → "60", 36.1 → "36.1").
+  String toCompactString() => this % 1 == 0 ? toInt().toString() : toString();
 }
 
 abstract final class UnitConversion {

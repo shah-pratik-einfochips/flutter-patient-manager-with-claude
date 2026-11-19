@@ -7,18 +7,7 @@ import 'package:patient_health/data/fhir_mapper.dart';
 import 'package:patient_health/domain/enums.dart';
 import 'package:patient_health/domain/models.dart';
 
-Patient samplePatient({String? fhirId, String id = 'p1'}) => Patient(
-  id: id,
-  medicalId: 'MRN-001',
-  firstName: 'Anna',
-  lastName: 'Lee',
-  dob: DateTime(1990, 4, 5),
-  gender: Gender.female,
-  phone: '+1 555 123 4567',
-  email: 'anna@example.com',
-  bloodType: BloodType.abPos,
-  fhirId: fhirId,
-);
+import '../support/fixtures.dart';
 
 /// Scripted HTTP adapter: returns queued responses and records requests.
 class FakeAdapter implements HttpClientAdapter {

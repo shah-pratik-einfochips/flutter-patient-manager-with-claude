@@ -26,10 +26,17 @@ class VitalPoint {
 }
 
 abstract final class DashboardCalculator {
+  /// Length of the dashboard window, in days.
+  static const windowDays = 7;
+
+  /// Start of the dashboard window ending at [now].
+  static DateTime windowStart(DateTime now) =>
+      now.subtract(const Duration(days: windowDays));
+
   /// Records from the last [days] days up to [now], oldest first.
   static List<VitalRecord> recent(
     List<VitalRecord> records, {
-    int days = 7,
+    int days = windowDays,
     DateTime? now,
   }) {
     final end = now ?? DateTime.now();
@@ -48,8 +55,10 @@ abstract final class DashboardCalculator {
         VitalPoint(r.recordedAt, v, ValidationService.isAbnormal(v, type)),
   ];
 
-  static VitalStats? stats(List<VitalRecord> records, VitalType type) {
-    final pts = points(records, type);
+  static VitalStats? stats(List<VitalRecord> records, VitalType type) =>
+      statsOf(points(records, type));
+
+  static VitalStats? statsOf(List<VitalPoint> pts) {
     if (pts.isEmpty) return null;
     final latest = pts.reduce((a, b) => b.time.isAfter(a.time) ? b : a);
     final values = pts.map((p) => p.value);

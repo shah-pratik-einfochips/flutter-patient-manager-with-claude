@@ -163,22 +163,6 @@ class AppDatabase extends _$AppDatabase {
 
   // region Vitals
 
-  Stream<List<VitalRecord>> watchVitalsSince(
-    String patientId,
-    DateTime since,
-  ) =>
-      (select(vitals)
-            ..where(
-              (t) =>
-                  t.patientId.equals(patientId) &
-                  t.recordedAt.isBiggerOrEqualValue(
-                    since.millisecondsSinceEpoch,
-                  ),
-            )
-            ..orderBy([(t) => OrderingTerm.desc(t.recordedAt)]))
-          .watch()
-          .map((rows) => rows.map(_vital).toList());
-
   Stream<List<VitalRecord>> watchVitals(String patientId) =>
       (select(vitals)
             ..where((t) => t.patientId.equals(patientId))
@@ -192,9 +176,6 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> insertVital(VitalRecord v) =>
       into(vitals).insertOnConflictUpdate(_vitalCompanion(v));
-
-  Future<void> deleteVital(String id) =>
-      (delete(vitals)..where((t) => t.id.equals(id))).go();
 
   Future<List<VitalRecord>> unsyncedVitals(String patientId) async =>
       (await (select(vitals)..where(

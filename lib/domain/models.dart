@@ -61,6 +61,14 @@ class Patient {
 
   String get fullName => '$firstName $lastName';
 
+  /// Applies the consent rule: the original time is kept while consent stays granted,
+  /// [now] is stamped when it is newly granted, and the time is cleared when revoked.
+  Patient withConsent(bool given, {DateTime? now}) => copyWith(
+    consentGiven: given,
+    consentAt: given ? (consentAt ?? now ?? DateTime.now()) : null,
+    clearConsentAt: !given,
+  );
+
   Patient copyWith({
     String? medicalId,
     String? firstName,
@@ -148,6 +156,20 @@ class VitalRecord {
   double? get map => systolic != null && diastolic != null
       ? UnitConversion.meanArterialPressure(systolic!, diastolic!)
       : null;
+
+  /// Copy with one measured vital set (canonical units). MAP is derived, so it cannot be set.
+  VitalRecord withValue(VitalType type, double v) => switch (type) {
+    VitalType.systolic => copyWith(systolic: v),
+    VitalType.diastolic => copyWith(diastolic: v),
+    VitalType.map => throw ArgumentError.value(type, 'type', 'MAP is derived'),
+    VitalType.heartRate => copyWith(heartRate: v),
+    VitalType.height => copyWith(heightCm: v),
+    VitalType.weight => copyWith(weightKg: v),
+    VitalType.temperature => copyWith(temperatureC: v),
+    VitalType.respiratoryRate => copyWith(respiratoryRate: v),
+    VitalType.spo2 => copyWith(spo2: v),
+    VitalType.painLevel => copyWith(painLevel: v),
+  };
 
   /// Value for a vital type in canonical units, or null if not recorded.
   double? value(VitalType type) => switch (type) {

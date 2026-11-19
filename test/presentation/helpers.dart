@@ -8,8 +8,7 @@ import 'package:patient_health/domain/models.dart';
 import 'package:patient_health/presentation/providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../data/fhir_test.dart' show samplePatient;
-import '../data/repository_test.dart' show MockFhir;
+import '../support/fixtures.dart';
 
 class Harness {
   Harness(this.db, this.fhir, this.router);
