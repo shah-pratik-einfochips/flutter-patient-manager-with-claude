@@ -124,8 +124,9 @@ void main() {
     expect(find.text('Export CSV'), findsOneWidget);
     expect(find.text('Export PDF'), findsOneWidget);
 
-    // Unmount before the in-memory DB goes away so drift stream timers are cleaned up.
+    // Unmount before closing the in-memory DB so drift stream timers are cleaned up.
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));
+    await db.close();
   });
 }
